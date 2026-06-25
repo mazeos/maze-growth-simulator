@@ -210,6 +210,10 @@
         <div class="slider-head"><label>Crecimiento mensual adquisición</label><span class="val" id="growthV">0%</span></div>
         <input type="range" id="growth" min="0" max="50" step="5" value="0">
       </div>
+      <div class="slider-field">
+        <div class="slider-head"><label>Comisión comercial (% del setup)</label><span class="val" id="comPctV">10%</span></div>
+        <input type="range" id="comPct" min="0" max="50" step="5" value="10">
+      </div>
     </div>
 
     <div class="grp">
@@ -327,7 +331,7 @@ function P(){
     sueldo:+$('sueldo').value, claude:+$('claude').value, ghl:+$('ghl').value, tools:+$('tools').value,
     vps:+$('vps').value, api:+$('api').value, montaje:+$('montaje').value,
     capT1:+$('capT1').value, capT2:+$('capT2').value,
-    cac:+$('cac').value, nuevos:+$('nuevos').value, growth:+$('growth').value,
+    cac:+$('cac').value, nuevos:+$('nuevos').value, growth:+$('growth').value, comPct:+$('comPct').value/100,
     vidaT1:+$('vidaT1').value, vidaT2:+$('vidaT2').value,
     mixT1:+$('mixT1').value/100, mixInfra:+$('mixInfra').value/100,
     cuentasAg:+$('cuentasAg').value,
@@ -371,9 +375,10 @@ function simulate(p){
     const cInfra=actInfra*(p.vps+p.api);
     const cMont=nuevos*p.montaje;
     const cCAC=nuevos*pr.cacCuenta;
-    const costos=cOp+cFijo+cInfra+cMont+cCAC;
+    const cCom=ingSetup*p.comPct;
+    const costos=cOp+cFijo+cInfra+cMont+cCAC+cCom;
     const util=ingresos-costos; cum+=util;
-    rows.push({t,nuevos,actT1,actT2,act,numOp,ingSetup,ingRec,ingInfra,ingresos,cOp,cFijo,cInfra,cMont,cCAC,costos,util,cum});
+    rows.push({t,nuevos,actT1,actT2,act,numOp,ingSetup,ingRec,ingInfra,ingresos,cOp,cFijo,cInfra,cMont,cCAC,cCom,costos,util,cum});
   }
   return rows;
 }
@@ -384,7 +389,7 @@ function metrics(p,rows){
   const margT1ci=(pr.tier1+p.feeInfra)-opMes/p.capT1-(p.vps+p.api);
   const margT2ci=(pr.tier2+p.feeInfra)-opMes/p.capT2-(p.vps+p.api);
   const ltvT1=margT1ci*p.vidaT1, ltvT2=margT2ci*p.vidaT2;
-  const margSetup=pr.setupCon-p.montaje;
+  const margSetup=pr.setupCon*(1-p.comPct)-p.montaje;
   // break-even clientes (cubrir fijos con margen contribucion blended a capacidad)
   const margBlend=margT1ci*p.mixT1+margT2ci*(1-p.mixT1);
   const fijos=(p.founderFree?0:opMes)+p.ghl+p.tools;
@@ -443,6 +448,7 @@ function renderTable(rows){
     line('Infra variable',r=>money(r.cInfra),'dim')+
     line('Montaje setup',r=>money(r.cMont),'dim')+
     line('CAC',r=>money(r.cCAC),'dim')+
+    line('Comisión comercial',r=>money(r.cCom),'dim')+
     line('Costos total',r=>'<b>'+money(r.costos)+'</b>')+
     `<tr><td class="sec-label" colspan="${rows.length+1}">RESULTADO</td></tr>`+
     line('Utilidad del mes',r=>'<span class="'+(r.util>=0?'pos':'neg')+'">'+money(r.util)+'</span>','row-util')+
@@ -488,6 +494,7 @@ function syncLabels(){
   $('cacV').textContent=money0(+$('cac').value);
   $('nuevosV').textContent=$('nuevos').value;
   $('growthV').textContent=$('growth').value+'%';
+  $('comPctV').textContent=$('comPct').value+'%';
   $('vidaT1V').textContent=$('vidaT1').value+' meses';
   $('vidaT2V').textContent=$('vidaT2').value+' meses';
   $('mixT1V').textContent=$('mixT1').value+'%';
@@ -513,6 +520,7 @@ const TIPS={
   cac:'Costo de adquirir un cliente: lo que gastás en ads/ventas por cada cierre.',
   nuevos:'Cuántas cuentas nuevas entran por mes.',
   growth:'Las cuentas nuevas crecen este % cada mes.',
+  comPct:'Comisión que le pagás al equipo comercial por cada venta. Se calcula como % del setup fee y sale del revenue (baja la utilidad).',
   vidaT1:'Meses que se queda en promedio un cliente Tier 1 antes de irse. Define el LTV.',
   vidaT2:'Meses que se queda en promedio un cliente Tier 2.',
   mixT1:'Qué porcentaje de tus clientes son Tier 1 (el resto, Tier 2).',
@@ -534,7 +542,7 @@ function bd(key){
   const R=x=>x===Infinity?'∞':x.toFixed(1)+':1';
   switch(key){
    case 'revenue':{const nInf=r.nuevos*p.mixInfra,nNo=r.nuevos*(1-p.mixInfra),actInf=r.act*p.mixInfra;return{t:`Revenue · Mes ${mesSel}`,h:F('Cada peso, repartido por cliente')+S('Setup · clientes nuevos del mes')+L(`• ${r1(nInf)} con infra × ${money0(pr.setupCon)}`,money(nInf*pr.setupCon))+L(`• ${r1(nNo)} sin infra × ${money0(pr.setupSin)}`,money(nNo*pr.setupSin))+S('Recurrente · clientes activos')+L(`• ${r1(r.actT1)} Tier 1 × ${money0(pr.tier1)}`,money(r.actT1*pr.tier1))+L(`• ${r1(r.actT2)} Tier 2 × ${money0(pr.tier2)}`,money(r.actT2*pr.tier2))+S('Fee infraestructura')+L(`• ${r1(actInf)} cuentas × ${money0(p.feeInfra)}`,money(actInf*p.feeInfra))+L('<b>Revenue total</b>','<b>'+money(r.ingresos)+'</b>')+N('Precios ya con descuento por volumen. Los clientes salen en fracciones porque son promedios del mes.')};}
-   case 'profit':{const opU=p.sueldo+p.claude,actInf=r.act*p.mixInfra;return{t:`Profit neto · Mes ${mesSel}`,h:F('Ingresos − cada costo, repartido')+L('Ingresos del mes',money(r.ingresos))+S('Costos, repartidos')+L(`• Operadores: ${r.numOp}${p.founderFree?' (−1 gratis)':''} × ${money0(opU)}`,money(-r.cOp))+L('• Fijos (GHL + tools)',money(-r.cFijo))+L(`• Infra: ${r1(actInf)} cuentas × ${money0(p.vps+p.api)}`,money(-r.cInfra))+L(`• Montaje: ${r1(r.nuevos)} nuevos × ${money0(p.montaje)}`,money(-r.cMont))+L(`• Ads (CAC): ${r1(r.nuevos)} × ${money0(pr.cacCuenta)}`,money(-r.cCAC))+L('<b>Profit neto</b>','<b>'+money(r.util)+'</b>')+N('Margen del mes: '+(r.ingresos>0?(r.util/r.ingresos*100).toFixed(1)+'%':'—')+' · utilidad ÷ ingresos.')};}
+   case 'profit':{const opU=p.sueldo+p.claude,actInf=r.act*p.mixInfra;return{t:`Profit neto · Mes ${mesSel}`,h:F('Ingresos − cada costo, repartido')+L('Ingresos del mes',money(r.ingresos))+S('Costos, repartidos')+L(`• Operadores: ${r.numOp}${p.founderFree?' (−1 gratis)':''} × ${money0(opU)}`,money(-r.cOp))+L('• Fijos (GHL + tools)',money(-r.cFijo))+L(`• Infra: ${r1(actInf)} cuentas × ${money0(p.vps+p.api)}`,money(-r.cInfra))+L(`• Montaje: ${r1(r.nuevos)} nuevos × ${money0(p.montaje)}`,money(-r.cMont))+L(`• Ads (CAC): ${r1(r.nuevos)} × ${money0(pr.cacCuenta)}`,money(-r.cCAC))+L(`• Comisión comercial: ${Math.round(p.comPct*100)}% del setup`,money(-r.cCom))+L('<b>Profit neto</b>','<b>'+money(r.util)+'</b>')+N('Margen del mes: '+(r.ingresos>0?(r.util/r.ingresos*100).toFixed(1)+'%':'—')+' · utilidad ÷ ingresos.')};}
    case 'ads':{const nInf=r.nuevos*p.mixInfra,nNo=r.nuevos*(1-p.mixInfra),nT1=r.nuevos*p.mixT1,nT2=r.nuevos*(1-p.mixT1);return{t:`Inversión publicitaria · Mes ${mesSel}`,h:F('Cuentas nuevas × CAC efectivo')+S('Cómo se reparten las cuentas nuevas')+L(`• Tier 1 (${Math.round(p.mixT1*100)}%)`,r1(nT1))+L(`• Tier 2 (${Math.round((1-p.mixT1)*100)}%)`,r1(nT2))+L(`• con infra (${Math.round(p.mixInfra*100)}%)`,r1(nInf))+L('• sin infra',r1(nNo))+S('Cálculo del CAC')+L('CAC base',money0(p.cac))+L('÷ Cuentas por agencia',p.cuentasAg)+L('= CAC efectivo/cuenta',money0(pr.cacCuenta))+L(`${r1(r.nuevos)} cuentas × ${money0(pr.cacCuenta)}`,money(r.cCAC))+L('<b>Inversión del mes</b>','<b>'+money(r.cCAC)+'</b>')+N('El CAC se reparte entre las cuentas que trae cada agencia.')};}
    case 'cum6':return{t:'Utilidad acumulada 6 meses',h:F('Suma de la utilidad de cada mes')+rows.map(x=>L('Mes '+x.t,money(x.util))).join('')+L('<b>Acumulado</b>','<b>'+money(m.cum6)+'</b>')};
    case 'util6':return{t:'Utilidad mes 6',h:F('Ingresos − Costos (mes 6)')+L('Ingresos',money(rows[5].ingresos))+L('− Costos',money(-rows[5].costos))+L('<b>Utilidad</b>','<b>'+money(rows[5].util)+'</b>')};
