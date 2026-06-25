@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Maze · Simulador Growth Engine Ops</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0e0f0d; --panel:#17181500; --card:#1a1c18; --card2:#212420;
+    --line:#2e312b; --txt:#eef0ea; --mut:#9aa094; --lima:#C5FF49; --lima-dim:#9bcb35;
+    --pos:#7fe08a; --neg:#ff6b6b; --gold:#e8c468;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{background:var(--bg);color:var(--txt);font-family:'Hanken Grotesk',system-ui,sans-serif;font-size:14px;line-height:1.45;padding:16px 24px;max-width:1500px;margin:0 auto;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+  h1{font-family:'Fraunces',serif;font-weight:600;font-size:26px;letter-spacing:-.5px}
+  h1 .ge{color:var(--lima)}
+  .sub{color:var(--mut);font-size:13px;margin-top:2px}
+  h2{font-family:'Fraunces',serif;font-weight:600;font-size:15px;margin:0 0 10px;color:var(--lima)}
+  header{display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px;margin-bottom:16px;flex:0 0 auto}
+  .templates{display:flex;gap:7px;flex-wrap:wrap}
+  .tpl{background:var(--card2);border:1px solid var(--line);color:var(--txt);padding:7px 12px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;font-family:inherit;transition:.12s}
+  .tpl:hover{border-color:var(--lima);color:var(--lima)}
+  .tpl.alt{border-style:dashed}
+  .layout{display:grid;grid-template-columns:340px 1fr;gap:18px;flex:1 1 auto;min-height:0}
+  .layout>.panel,.layout>.results{overflow-y:auto;min-height:0;padding-bottom:10px}
+  .panel::-webkit-scrollbar,.results::-webkit-scrollbar{width:9px}
+  .panel::-webkit-scrollbar-track,.results::-webkit-scrollbar-track{background:transparent}
+  .panel::-webkit-scrollbar-thumb,.results::-webkit-scrollbar-thumb{background:#2e312b;border-radius:5px}
+  .panel::-webkit-scrollbar-thumb:hover,.results::-webkit-scrollbar-thumb:hover{background:#3d4138}
+  .acc-bar{display:flex;gap:6px;margin-bottom:14px}
+  .grp>h2{cursor:pointer;user-select:none;display:flex;justify-content:space-between;align-items:center}
+  .grp>h2::after{content:'▾';color:var(--mut);font-size:11px;transition:transform .15s;font-family:sans-serif}
+  .grp.collapsed>h2::after{transform:rotate(-90deg)}
+  .grp.collapsed>*:not(h2){display:none}
+  @media(max-width:980px){
+    body{height:auto;overflow:auto;display:block}
+    .layout{display:block;min-height:0}
+    .layout{grid-template-columns:1fr}
+    .layout>.panel,.layout>.results{overflow:visible;min-height:0;max-height:none}
+  }
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}
+  .grp{margin-bottom:16px}
+  .grp:last-child{margin-bottom:0}
+  .field{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:7px 0}
+  .field label{color:var(--mut);font-size:12.5px;flex:1}
+  .field .unit{color:#5f655a;font-size:11px;margin-right:2px}
+  input[type=number]{width:78px;background:var(--bg);border:1px solid var(--line);color:var(--txt);padding:5px 7px;border-radius:7px;font-family:inherit;font-size:13px;text-align:right}
+  input[type=number]:focus{outline:none;border-color:var(--lima)}
+  input[type=range]{width:100%;accent-color:var(--lima);margin-top:3px}
+  .slider-field{margin:10px 0}
+  .slider-head{display:flex;justify-content:space-between;font-size:12.5px}
+  .slider-head label{color:var(--mut)}
+  .slider-head .val{color:var(--lima);font-weight:700;font-variant-numeric:tabular-nums}
+  .chk{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12.5px;color:var(--mut);cursor:pointer}
+  .chk input{accent-color:var(--lima);width:16px;height:16px}
+  /* month selector */
+  .monthsel{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;align-items:center}
+  .monthsel .lbl{color:var(--mut);font-size:12px;margin-right:4px}
+  .mbtn{background:var(--card2);border:1px solid var(--line);color:var(--mut);padding:6px 13px;border-radius:8px;cursor:pointer;font-family:inherit;font-size:12.5px;font-weight:600;transition:.1s}
+  .mbtn:hover{color:var(--txt)}
+  .mbtn.active{background:var(--lima);color:#0e0f0d;border-color:var(--lima)}
+  /* hero */
+  .hero{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:14px}
+  @media(max-width:1180px){.hero{grid-template-columns:1fr}}
+  .hc{border:1px solid var(--line);border-radius:16px;padding:18px 20px}
+  .hc.rev{background:linear-gradient(135deg,#1d2417,#15180f);border-color:#3f5121}
+  .hc.profit{background:linear-gradient(135deg,#142019,#0f1712);border-color:#2a4030}
+  .hc.ads{background:linear-gradient(135deg,#211d13,#17130d);border-color:#4a3f20}
+  .hc .k{font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--mut)}
+  .hc .v{font-family:'Fraunces',serif;font-size:40px;font-weight:600;margin-top:5px;font-variant-numeric:tabular-nums;line-height:1}
+  .hc .v.pos{color:var(--pos)}.hc .v.neg{color:var(--neg)}
+  .hc.rev .v{color:var(--lima)} .hc.ads .v{color:var(--gold)}
+  .hc .h{color:#7a8170;font-size:12px;margin-top:8px}
+  .mc[data-key],.hc[data-key]{cursor:pointer}
+  .mc[data-key]:hover,.hc[data-key]:hover{border-color:var(--lima)}
+  /* tooltip */
+  .tip{display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:50%;border:1px solid var(--line);color:var(--mut);font-size:9px;font-style:italic;cursor:help;margin-left:6px;position:relative;flex:none;font-weight:700}
+  .tip:hover{border-color:var(--lima);color:var(--lima)}
+  .tip:hover::after{content:attr(data-tip);position:absolute;left:145%;top:50%;transform:translateY(-50%);background:#0a0b09;border:1px solid var(--lima);color:var(--txt);padding:8px 11px;border-radius:8px;width:210px;font-size:11.5px;line-height:1.45;font-weight:400;font-style:normal;text-transform:none;letter-spacing:0;z-index:80;box-shadow:0 8px 24px rgba(0,0,0,.55)}
+  /* modal */
+  .modal-ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.62);z-index:100;align-items:center;justify-content:center;padding:20px}
+  .modal{background:var(--card);border:1px solid var(--lima);border-radius:16px;padding:22px;max-width:470px;width:100%;position:relative;box-shadow:0 24px 70px rgba(0,0,0,.6)}
+  .modal h3{font-family:'Fraunces',serif;font-size:18px;color:var(--lima);margin-bottom:14px;padding-right:24px}
+  .modal-x{position:absolute;top:12px;right:15px;background:none;border:none;color:var(--mut);font-size:24px;cursor:pointer;line-height:1;font-family:inherit}
+  .modal-x:hover{color:var(--txt)}
+  .bd-f{background:var(--bg);border:1px dashed var(--line);border-radius:8px;padding:8px 11px;color:var(--lima);font-size:12px;margin-bottom:10px;font-family:ui-monospace,'SF Mono',monospace}
+  .bd-l{display:flex;justify-content:space-between;gap:14px;padding:7px 2px;border-bottom:1px solid var(--line);font-size:13px;font-variant-numeric:tabular-nums}
+  .bd-l span:first-child{color:var(--mut)}
+  .bd-n{color:#6b7163;font-size:11.5px;margin-top:11px;line-height:1.5}
+  /* metrics */
+  .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
+  @media(max-width:1180px){.cards{grid-template-columns:repeat(2,1fr)}}
+  .mc{background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:12px 13px}
+  .mc .k{color:var(--mut);font-size:11px;text-transform:uppercase;letter-spacing:.4px}
+  .mc .v{font-family:'Fraunces',serif;font-size:22px;font-weight:600;margin-top:3px;font-variant-numeric:tabular-nums}
+  .mc .v.pos{color:var(--pos)} .mc .v.neg{color:var(--neg)} .mc .v.lima{color:var(--lima)} .mc .v.gold{color:var(--gold)}
+  .mc .h{color:#6b7163;font-size:11px;margin-top:2px}
+  /* chart */
+  .chartwrap{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:16px}
+  .legend{display:flex;gap:16px;font-size:12px;color:var(--mut);margin-bottom:6px}
+  .legend i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+  /* table */
+  .tablewrap{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;overflow-x:auto}
+  table{width:100%;border-collapse:collapse;font-size:12.5px;font-variant-numeric:tabular-nums;white-space:nowrap}
+  th,td{padding:7px 9px;text-align:right;border-bottom:1px solid var(--line)}
+  th:first-child,td:first-child{text-align:left;color:var(--mut)}
+  thead th{color:var(--lima);font-weight:600;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--card)}
+  tbody tr:hover{background:var(--card2)}
+  .row-util td{font-weight:700}
+  .pos{color:var(--pos)} .neg{color:var(--neg)} .dim{color:#6b7163}
+  .sec-label{color:var(--mut);font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin:14px 0 4px;border-top:1px solid var(--line);padding-top:8px}
+  .foot{color:#5f655a;font-size:11.5px;margin-top:14px;line-height:1.5}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Maze · Simulador <span class="ge">Growth Engine Ops</span></h1>
+    <div class="sub">Modelo predictivo a 6 meses · jugá con CAC, retención, tiers e infraestructura</div>
+  </div>
+  <div class="templates" id="templates"></div>
+</header>
+
+<div class="layout">
+  <!-- ============ INPUTS ============ -->
+  <div class="panel" id="inputs">
+    <div class="acc-bar">
+      <button class="tpl" id="collapseAll">▸ Colapsar todo</button>
+      <button class="tpl" id="expandAll">▾ Expandir todo</button>
+    </div>
+    <div class="grp">
+      <h2>💵 Precios (al cliente)</h2>
+      <div class="field"><label>Setup sin infra</label><span class="unit">$</span><input type="number" id="setupSin" value="1500"></div>
+      <div class="field"><label>Setup con infra</label><span class="unit">$</span><input type="number" id="setupCon" value="3000"></div>
+      <div class="field"><label>Tier 1 (grupal) / mes</label><span class="unit">$</span><input type="number" id="tier1" value="600"></div>
+      <div class="field"><label>Tier 2 (1a1) / mes</label><span class="unit">$</span><input type="number" id="tier2" value="1200"></div>
+      <div class="field"><label>Fee Infra IA / mes</label><span class="unit">$</span><input type="number" id="feeInfra" value="200"></div>
+    </div>
+
+    <div class="grp">
+      <h2>🏗️ Costos fijos / mes</h2>
+      <div class="field"><label>Sueldo operador</label><span class="unit">$</span><input type="number" id="sueldo" value="2000"></div>
+      <div class="field"><label>Claude Max / operador</label><span class="unit">$</span><input type="number" id="claude" value="200"></div>
+      <div class="field"><label>GHL Agency</label><span class="unit">$</span><input type="number" id="ghl" value="497"></div>
+      <div class="field"><label>Herramientas base</label><span class="unit">$</span><input type="number" id="tools" value="100"></div>
+      <label class="chk"><input type="checkbox" id="founderFree" checked> El 1er operador soy yo (sin sueldo)</label>
+    </div>
+
+    <div class="grp">
+      <h2>⚙️ Costos variables (por cliente con infra)</h2>
+      <div class="field"><label>VPS (Hostinger)</label><span class="unit">$</span><input type="number" id="vps" value="22"></div>
+      <div class="field"><label>API Gemini / mes</label><span class="unit">$</span><input type="number" id="api" value="50"></div>
+      <div class="field"><label>Montaje setup (one-time)</label><span class="unit">$</span><input type="number" id="montaje" value="400"></div>
+    </div>
+
+    <div class="grp">
+      <h2>👥 Capacidad (clientes por operador)</h2>
+      <div class="field"><label>Tier 1 (grupal)</label><input type="number" id="capT1" value="15"></div>
+      <div class="field"><label>Tier 2 (1a1)</label><input type="number" id="capT2" value="7"></div>
+    </div>
+
+    <div class="grp">
+      <h2>🎯 Adquisición</h2>
+      <div class="slider-field">
+        <div class="slider-head"><label>CAC (costo por cliente)</label><span class="val" id="cacV">$1.000</span></div>
+        <input type="range" id="cac" min="0" max="6000" step="50" value="1000">
+      </div>
+      <div class="slider-field">
+        <div class="slider-head"><label>Clientes nuevos / mes</label><span class="val" id="nuevosV">2</span></div>
+        <input type="range" id="nuevos" min="0" max="20" step="1" value="2">
+      </div>
+      <div class="slider-field">
+        <div class="slider-head"><label>Crecimiento mensual adquisición</label><span class="val" id="growthV">0%</span></div>
+        <input type="range" id="growth" min="0" max="50" step="5" value="0">
+      </div>
+    </div>
+
+    <div class="grp">
+      <h2>⏳ Retención (meses que dura el cliente)</h2>
+      <div class="slider-field">
+        <div class="slider-head"><label>Vida Tier 1</label><span class="val" id="vidaT1V">3 meses</span></div>
+        <input type="range" id="vidaT1" min="1" max="24" step="1" value="3">
+      </div>
+      <div class="slider-field">
+        <div class="slider-head"><label>Vida Tier 2</label><span class="val" id="vidaT2V">3 meses</span></div>
+        <input type="range" id="vidaT2" min="1" max="24" step="1" value="3">
+      </div>
+    </div>
+
+    <div class="grp">
+      <h2>🔀 Mix de clientes</h2>
+      <div class="slider-field">
+        <div class="slider-head"><label>% Tier 1 (resto = Tier 2)</label><span class="val" id="mixT1V">70%</span></div>
+        <input type="range" id="mixT1" min="0" max="100" step="5" value="70">
+      </div>
+      <div class="slider-field">
+        <div class="slider-head"><label>% con infraestructura IA</label><span class="val" id="mixInfraV">80%</span></div>
+        <input type="range" id="mixInfra" min="0" max="100" step="5" value="80">
+      </div>
+    </div>
+
+    <div class="grp">
+      <h2>📦 Combos por volumen (agencias)</h2>
+      <div class="slider-field">
+        <div class="slider-head"><label>Cuentas por agencia (promedio)</label><span class="val" id="cuentasAgV">1</span></div>
+        <input type="range" id="cuentasAg" min="1" max="20" step="1" value="1">
+      </div>
+      <div class="sec-label" style="margin-top:6px">Escalones de descuento</div>
+      <table style="width:100%;font-size:11.5px;margin-top:4px">
+        <tr style="color:var(--mut)"><td style="text-align:left">Desde cuenta&nbsp;#</td><td>% setup</td><td>% tier</td></tr>
+        <tr><td style="text-align:left"><input type="number" id="u1" value="1" style="width:52px"></td><td><input type="number" id="ds1" value="0" style="width:52px"></td><td><input type="number" id="dt1" value="0" style="width:52px"></td></tr>
+        <tr><td style="text-align:left"><input type="number" id="u2" value="5" style="width:52px"></td><td><input type="number" id="ds2" value="15" style="width:52px"></td><td><input type="number" id="dt2" value="10" style="width:52px"></td></tr>
+        <tr><td style="text-align:left"><input type="number" id="u3" value="10" style="width:52px"></td><td><input type="number" id="ds3" value="25" style="width:52px"></td><td><input type="number" id="dt3" value="20" style="width:52px"></td></tr>
+        <tr><td style="text-align:left"><input type="number" id="u4" value="15" style="width:52px"></td><td><input type="number" id="ds4" value="35" style="width:52px"></td><td><input type="number" id="dt4" value="30" style="width:52px"></td></tr>
+      </table>
+      <div style="color:#5f655a;font-size:11px;margin-top:5px">El descuento aplica a la cuenta N-ésima que acumula una agencia. El CAC se reparte entre sus cuentas.</div>
+    </div>
+  </div>
+
+  <!-- ============ RESULTS ============ -->
+  <div class="results">
+    <div class="monthsel" id="monthsel"></div>
+    <div class="hero" id="hero"></div>
+    <div class="cards" id="cards"></div>
+
+    <div class="chartwrap">
+      <div class="legend">
+        <span><i style="background:var(--lima)"></i>Utilidad acumulada</span>
+        <span><i style="background:var(--gold)"></i>Utilidad mensual</span>
+        <span><i style="background:#3a3f37"></i>Línea de $0</span>
+      </div>
+      <div id="chart"></div>
+    </div>
+
+    <div class="tablewrap">
+      <h2>📊 Proyección mes a mes (6 meses)</h2>
+      <table id="tbl"></table>
+      <div class="foot" id="foot"></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-ov" id="modalOv"><div class="modal"><button class="modal-x" id="modalX">&times;</button><h3 id="modalT"></h3><div id="modalB"></div></div></div>
+
+<script>
+const $=id=>document.getElementById(id);
+const money=n=>{const s=n<0?'-':'';n=Math.abs(Math.round(n));return s+'$'+n.toLocaleString('es-AR');};
+const money0=n=>'$'+Math.round(n).toLocaleString('es-AR');
+const r1=x=>(+x).toFixed(1);
+let mesSel=6;
+let G={};
+
+const PRESETS={
+  'Base':{cac:1000,nuevos:2,growth:0,vidaT1:3,vidaT2:3,mixT1:70,mixInfra:80,founderFree:true},
+  'Conservador':{cac:2000,nuevos:1,growth:0,vidaT1:3,vidaT2:3,mixT1:80,mixInfra:60,founderFree:true},
+  'Optimista':{cac:500,nuevos:4,growth:10,vidaT1:12,vidaT2:12,mixT1:50,mixInfra:90,founderFree:true},
+  'Escala agresiva':{cac:800,nuevos:6,growth:15,vidaT1:9,vidaT2:9,mixT1:60,mixInfra:85,founderFree:false},
+  'Solo Tier 1':{mixT1:100},
+  'Solo Tier 2':{mixT1:0},
+  'Todo con infra':{mixInfra:100},
+  'Sin infra':{mixInfra:0},
+  'Combo agencia':{cuentasAg:8,mixInfra:90,nuevos:3}
+};
+
+function buildTemplates(){
+  const c=$('templates');
+  Object.keys(PRESETS).forEach((k,i)=>{
+    const b=document.createElement('button');
+    b.className='tpl'+(i>=4?' alt':''); b.textContent=k;
+    b.onclick=()=>{const p=PRESETS[k];for(const key in p){const el=$(key);if(!el)continue;if(el.type==='checkbox')el.checked=p[key];else el.value=p[key];}render();};
+    c.appendChild(b);
+  });
+}
+
+function P(){
+  return {
+    setupSin:+$('setupSin').value, setupCon:+$('setupCon').value,
+    tier1:+$('tier1').value, tier2:+$('tier2').value, feeInfra:+$('feeInfra').value,
+    sueldo:+$('sueldo').value, claude:+$('claude').value, ghl:+$('ghl').value, tools:+$('tools').value,
+    vps:+$('vps').value, api:+$('api').value, montaje:+$('montaje').value,
+    capT1:+$('capT1').value, capT2:+$('capT2').value,
+    cac:+$('cac').value, nuevos:+$('nuevos').value, growth:+$('growth').value,
+    vidaT1:+$('vidaT1').value, vidaT2:+$('vidaT2').value,
+    mixT1:+$('mixT1').value/100, mixInfra:+$('mixInfra').value/100,
+    cuentasAg:+$('cuentasAg').value,
+    esc:[{u:+$('u1').value,ds:+$('ds1').value/100,dt:+$('dt1').value/100},
+         {u:+$('u2').value,ds:+$('ds2').value/100,dt:+$('dt2').value/100},
+         {u:+$('u3').value,ds:+$('ds3').value/100,dt:+$('dt3').value/100},
+         {u:+$('u4').value,ds:+$('ds4').value/100,dt:+$('dt4').value/100}],
+    founderFree:$('founderFree').checked, meses:6
+  };
+}
+
+function descCuenta(n,esc){let r={ds:0,dt:0};esc.forEach(e=>{if(n>=e.u)r={ds:e.ds,dt:e.dt};});return r;}
+function preciosProm(p){
+  const K=Math.max(1,p.cuentasAg);let ss=0,sc=0,t1=0,t2=0;
+  for(let n=1;n<=K;n++){const d=descCuenta(n,p.esc);ss+=p.setupSin*(1-d.ds);sc+=p.setupCon*(1-d.ds);t1+=p.tier1*(1-d.dt);t2+=p.tier2*(1-d.dt);}
+  return {setupSin:ss/K,setupCon:sc/K,tier1:t1/K,tier2:t2/K,cacCuenta:p.cac/K,K};
+}
+function simulate(p){
+  const pr=preciosProm(p);
+  const news=[0];
+  for(let t=1;t<=p.meses;t++) news[t]=p.nuevos*Math.pow(1+p.growth/100,t-1);
+  const rows=[]; let cum=0;
+  for(let t=1;t<=p.meses;t++){
+    const nuevos=news[t];
+    let actT1=0,actT2=0;
+    for(let c=1;c<=t;c++){
+      if(t-c<p.vidaT1) actT1+=news[c]*p.mixT1;
+      if(t-c<p.vidaT2) actT2+=news[c]*(1-p.mixT1);
+    }
+    const act=actT1+actT2, actInfra=act*p.mixInfra;
+    const nInfra=nuevos*p.mixInfra, nNo=nuevos*(1-p.mixInfra);
+    const ingSetup=nInfra*pr.setupCon+nNo*pr.setupSin;
+    const ingRec=actT1*pr.tier1+actT2*pr.tier2;
+    const ingInfra=actInfra*p.feeInfra;
+    const ingresos=ingSetup+ingRec+ingInfra;
+    const carga=actT1/p.capT1+actT2/p.capT2;
+    const numOp=act>0?Math.max(1,Math.ceil(carga)):0;
+    const opPag=p.founderFree?Math.max(0,numOp-1):numOp;
+    const cOp=opPag*(p.sueldo+p.claude);
+    const cFijo=(act>0||nuevos>0)?(p.ghl+p.tools):0;
+    const cInfra=actInfra*(p.vps+p.api);
+    const cMont=nuevos*p.montaje;
+    const cCAC=nuevos*pr.cacCuenta;
+    const costos=cOp+cFijo+cInfra+cMont+cCAC;
+    const util=ingresos-costos; cum+=util;
+    rows.push({t,nuevos,actT1,actT2,act,numOp,ingSetup,ingRec,ingInfra,ingresos,cOp,cFijo,cInfra,cMont,cCAC,costos,util,cum});
+  }
+  return rows;
+}
+
+function metrics(p,rows){
+  const pr=preciosProm(p);
+  const opMes=p.sueldo+p.claude;
+  const margT1ci=(pr.tier1+p.feeInfra)-opMes/p.capT1-(p.vps+p.api);
+  const margT2ci=(pr.tier2+p.feeInfra)-opMes/p.capT2-(p.vps+p.api);
+  const ltvT1=margT1ci*p.vidaT1, ltvT2=margT2ci*p.vidaT2;
+  const margSetup=pr.setupCon-p.montaje;
+  // break-even clientes (cubrir fijos con margen contribucion blended a capacidad)
+  const margBlend=margT1ci*p.mixT1+margT2ci*(1-p.mixT1);
+  const fijos=(p.founderFree?0:opMes)+p.ghl+p.tools;
+  const beCli=margBlend>0?Math.ceil(fijos/margBlend):Infinity;
+  return {ltvT1,ltvT2,margSetup,pr,cacCuenta:pr.cacCuenta,
+    ratioT1:pr.cacCuenta>0?ltvT1/pr.cacCuenta:Infinity, ratioT2:pr.cacCuenta>0?ltvT2/pr.cacCuenta:Infinity,
+    beCli, util6:rows[5].util, cum6:rows[5].cum,
+    cacBE:margSetup, // payback inmediato
+    valTotalT1:margSetup+ltvT1};
+}
+
+function renderCards(p,m,rows){
+  const ratio=x=>x===Infinity?'∞':x.toFixed(1)+':1';
+  const cls=v=>v>=0?'pos':'neg';
+  const cards=[
+    {key:'cum6',k:'Utilidad acum. 6m',v:money(m.cum6),c:cls(m.cum6),h:'lo que te queda en el bolsillo'},
+    {key:'util6',k:'Utilidad mes 6',v:money(m.util6),c:cls(m.util6),h:'ritmo mensual al mes 6'},
+    {key:'ltv1',k:'LTV Tier 1 (c/infra)',v:money0(m.ltvT1),c:'lima',h:p.vidaT1+' meses recurrentes'},
+    {key:'ltv2',k:'LTV Tier 2 (c/infra)',v:money0(m.ltvT2),c:'lima',h:p.vidaT2+' meses recurrentes'},
+    {key:'ratio1',k:'LTV:CAC Tier 1',v:ratio(m.ratioT1),c:m.ratioT1>=3?'pos':(m.ratioT1>=1?'gold':'neg'),h:'sano ≥ 3:1'},
+    {key:'ratio2',k:'LTV:CAC Tier 2',v:ratio(m.ratioT2),c:m.ratioT2>=3?'pos':(m.ratioT2>=1?'gold':'neg'),h:'sano ≥ 3:1'},
+    {key:'be',k:'Break-even',v:m.beCli===Infinity?'—':m.beCli+' clientes',c:'gold',h:'para cubrir costos fijos'},
+    {key:'cacbe',k:'Setup cubre CAC hasta',v:money0(m.cacBE),c:'lima',h:'rentable día 1 si CAC ≤ esto'},
+    {key:'precioT1',k:'Precio prom Tier 1/cuenta',v:money0(m.pr.tier1),c:'gold',h:'con descuento por volumen'},
+    {key:'cacef',k:'CAC efectivo/cuenta',v:money0(m.cacCuenta),c:'lima',h:'CAC ÷ cuentas por agencia'}
+  ];
+  $('cards').innerHTML=cards.map(c=>`<div class="mc" data-key="${c.key}"><div class="k">${c.k}</div><div class="v ${c.c}">${c.v}</div><div class="h">${c.h}</div></div>`).join('');
+}
+
+function renderTable(rows){
+  const r1=v=>v.toFixed(1);
+  const head=`<thead><tr><th>Concepto</th>${rows.map(r=>'<th>Mes '+r.t+'</th>').join('')}</tr></thead>`;
+  const line=(lbl,fn,cls='')=>`<tr class="${cls}"><td>${lbl}</td>${rows.map(r=>'<td class="'+cls+'">'+fn(r)+'</td>').join('')}</tr>`;
+  const body='<tbody>'+
+    `<tr><td class="sec-label" colspan="${rows.length+1}">CLIENTES</td></tr>`+
+    line('Nuevos',r=>r1(r.nuevos))+
+    line('Activos Tier 1',r=>r1(r.actT1))+
+    line('Activos Tier 2',r=>r1(r.actT2))+
+    line('Activos total',r=>'<b>'+r1(r.act)+'</b>')+
+    line('Operadores',r=>r.numOp)+
+    `<tr><td class="sec-label" colspan="${rows.length+1}">INGRESOS</td></tr>`+
+    line('Setup',r=>money(r.ingSetup),'dim')+
+    line('Recurrente (tiers)',r=>money(r.ingRec),'dim')+
+    line('Fee infra',r=>money(r.ingInfra),'dim')+
+    line('Ingresos total',r=>'<b>'+money(r.ingresos)+'</b>')+
+    `<tr><td class="sec-label" colspan="${rows.length+1}">COSTOS</td></tr>`+
+    line('Operadores',r=>money(r.cOp),'dim')+
+    line('Fijos (GHL+tools)',r=>money(r.cFijo),'dim')+
+    line('Infra variable',r=>money(r.cInfra),'dim')+
+    line('Montaje setup',r=>money(r.cMont),'dim')+
+    line('CAC',r=>money(r.cCAC),'dim')+
+    line('Costos total',r=>'<b>'+money(r.costos)+'</b>')+
+    `<tr><td class="sec-label" colspan="${rows.length+1}">RESULTADO</td></tr>`+
+    line('Utilidad del mes',r=>'<span class="'+(r.util>=0?'pos':'neg')+'">'+money(r.util)+'</span>','row-util')+
+    line('Utilidad acumulada',r=>'<span class="'+(r.cum>=0?'pos':'neg')+'">'+money(r.cum)+'</span>','row-util')+
+    '</tbody>';
+  $('tbl').innerHTML=head+body;
+}
+
+function renderChart(rows){
+  const W=820,H=280,pad=44;
+  const xs=rows.map(r=>r.t);
+  const cum=rows.map(r=>r.cum), util=rows.map(r=>r.util);
+  const all=cum.concat(util).concat([0]);
+  let mn=Math.min(...all),mx=Math.max(...all); if(mn===mx){mx=mn+1;}
+  const py=v=>H-pad-(v-mn)/(mx-mn)*(H-2*pad);
+  const px=t=>pad+(t-1)/(rows.length-1)*(W-2*pad);
+  const path=arr=>arr.map((v,i)=>(i?'L':'M')+px(rows[i].t).toFixed(1)+' '+py(v).toFixed(1)).join(' ');
+  const zeroY=py(0);
+  const dots=(arr,col)=>arr.map((v,i)=>`<circle cx="${px(rows[i].t).toFixed(1)}" cy="${py(v).toFixed(1)}" r="3.5" fill="${col}"/>`).join('');
+  let grid='';
+  for(let i=0;i<=4;i++){const val=mn+(mx-mn)*i/4;const y=py(val);grid+=`<line x1="${pad}" y1="${y}" x2="${W-pad}" y2="${y}" stroke="#23261f" stroke-width="1"/><text x="6" y="${y+4}" fill="#5f655a" font-size="10">${money0(val)}</text>`;}
+  const xlab=rows.map(r=>`<text x="${px(r.t)}" y="${H-14}" fill="#9aa094" font-size="11" text-anchor="middle">Mes ${r.t}</text>`).join('');
+  $('chart').innerHTML=`<svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block">
+    ${grid}
+    <line x1="${pad}" y1="${zeroY}" x2="${W-pad}" y2="${zeroY}" stroke="#3a3f37" stroke-width="1.5" stroke-dasharray="4 3"/>
+    <path d="${path(util)}" fill="none" stroke="#e8c468" stroke-width="2"/>
+    <path d="${path(cum)}" fill="none" stroke="#C5FF49" stroke-width="2.5"/>
+    ${dots(util,'#e8c468')}${dots(cum,'#C5FF49')}
+    ${xlab}
+  </svg>`;
+}
+
+function renderFoot(p,m){
+  $('foot').innerHTML=`Supuestos clave: vida T1 ${p.vidaT1}m · vida T2 ${p.vidaT2}m · CAC ${money0(p.cac)} · ${p.nuevos} nuevos/mes`+
+  (p.growth>0?` (+${p.growth}%/mes)`:'')+` · mix ${Math.round(p.mixT1*100)}% T1 · ${Math.round(p.mixInfra*100)}% con infra`+
+  (p.founderFree?' · 1er operador gratis (vos)':'')+
+  ` · ${p.cuentasAg} cuentas/agencia`+
+  `. &nbsp; Con volumen: precio prom/cuenta Tier1 ${money0(m.pr.tier1)} y CAC efectivo ${money0(m.cacCuenta)}/cuenta. LTV usa margen a capacidad llena; el setup financia el CAC (rentable día 1 si CAC ≤ ${money0(m.cacBE)}).`;
+}
+
+function syncLabels(){
+  $('cuentasAgV').textContent=$('cuentasAg').value;
+  $('cacV').textContent=money0(+$('cac').value);
+  $('nuevosV').textContent=$('nuevos').value;
+  $('growthV').textContent=$('growth').value+'%';
+  $('vidaT1V').textContent=$('vidaT1').value+' meses';
+  $('vidaT2V').textContent=$('vidaT2').value+' meses';
+  $('mixT1V').textContent=$('mixT1').value+'%';
+  $('mixInfraV').textContent=$('mixInfra').value+'%';
+}
+
+const TIPS={
+  setupSin:'Pago único al montar el funnel SIN infraestructura IA (sin VPS ni agentes avanzados).',
+  setupCon:'Pago único al montar el funnel CON infraestructura IA (incluye montar el VPS + agentes avanzados).',
+  tier1:'Cuota mensual del nivel grupal (soporte compartido). El más accesible.',
+  tier2:'Cuota mensual del nivel 1a1 (atención dedicada). Más caro porque consume más tiempo del equipo.',
+  feeInfra:'Cuota mensual que paga el cliente con infra por mantener su VPS + agentes. Cubre tu costo + margen.',
+  sueldo:'Lo que le pagás por mes a un operador (quien monta y opera los funnels).',
+  claude:'Licencia Claude Max por operador. Cada operador necesita la suya.',
+  ghl:'Costo fijo mensual de tu cuenta GHL Agency (white-label, cubre todas las subcuentas).',
+  tools:'Otras herramientas base mensuales (dominios, misceláneos).',
+  founderFree:'Si lo activás, el 1er operador sos vos y no se cuenta su sueldo. Refleja tu realidad de arranque.',
+  vps:'Costo mensual del VPS Hostinger por cada cliente con infra (recomendado KVM 4, 16GB).',
+  api:'Costo mensual estimado de la API Gemini por cliente (los agentes IA). Es el costo variable con riesgo de picos.',
+  montaje:'Costo en tiempo de operador de montar el setup de un cliente nuevo (one-time).',
+  capT1:'Cuántos clientes grupales puede sostener UN operador a la vez.',
+  capT2:'Cuántos clientes 1a1 puede sostener UN operador (menos, porque consume más tiempo).',
+  cac:'Costo de adquirir un cliente: lo que gastás en ads/ventas por cada cierre.',
+  nuevos:'Cuántas cuentas nuevas entran por mes.',
+  growth:'Las cuentas nuevas crecen este % cada mes.',
+  vidaT1:'Meses que se queda en promedio un cliente Tier 1 antes de irse. Define el LTV.',
+  vidaT2:'Meses que se queda en promedio un cliente Tier 2.',
+  mixT1:'Qué porcentaje de tus clientes son Tier 1 (el resto, Tier 2).',
+  mixInfra:'Qué porcentaje de tus clientes toman la infraestructura IA avanzada.',
+  cuentasAg:'Cuántas cuentas trae en promedio una misma agencia (apila). Más cuentas = más descuento por volumen y CAC más diluido.'
+};
+function injectTips(){
+  for(const id in TIPS){const el=$(id);if(!el)continue;const cont=el.closest('.field,.slider-field,.chk');if(!cont)continue;const lab=cont.querySelector('label')||cont;const s=document.createElement('span');s.className='tip';s.dataset.tip=TIPS[id];s.textContent='i';lab.appendChild(s);}
+}
+function bd(key){
+  const {p,m,rows}=G; if(!rows)return null; const r=rows[mesSel-1]; const pr=m.pr; const opMes=p.sueldo+p.claude;
+  const margT1=pr.tier1+p.feeInfra-opMes/p.capT1-(p.vps+p.api);
+  const margT2=pr.tier2+p.feeInfra-opMes/p.capT2-(p.vps+p.api);
+  const margBlend=margT1*p.mixT1+margT2*(1-p.mixT1);
+  const F=t=>`<div class="bd-f">${t}</div>`;
+  const L=(a,b)=>`<div class="bd-l"><span>${a}</span><span>${b}</span></div>`;
+  const N=t=>`<div class="bd-n">${t}</div>`;
+  const R=x=>x===Infinity?'∞':x.toFixed(1)+':1';
+  switch(key){
+   case 'revenue':return{t:`Revenue · Mes ${mesSel}`,h:F('Setup + Recurrente + Fee infra')+L('Setup nuevos del mes',money(r.ingSetup))+L(`Recurrente (${r1(r.actT1)} T1 + ${r1(r.actT2)} T2)`,money(r.ingRec))+L(`Fee infra (${r1(r.act*p.mixInfra)} cuentas)`,money(r.ingInfra))+L('<b>Revenue total</b>','<b>'+money(r.ingresos)+'</b>')+N('Precios ya con descuento por volumen.')};
+   case 'profit':return{t:`Profit neto · Mes ${mesSel}`,h:F('Ingresos − todos los costos')+L('Ingresos',money(r.ingresos))+L(`− Operadores (${r.numOp}${p.founderFree?', 1 gratis':''})`,money(-r.cOp))+L('− Fijos (GHL + tools)',money(-r.cFijo))+L('− Infra variable',money(-r.cInfra))+L('− Montaje setup',money(-r.cMont))+L('− Inversión ads (CAC)',money(-r.cCAC))+L('<b>Profit neto</b>','<b>'+money(r.util)+'</b>')};
+   case 'ads':return{t:`Inversión publicitaria · Mes ${mesSel}`,h:F('Cuentas nuevas × CAC efectivo/cuenta')+L('Cuentas nuevas',r1(r.nuevos))+L('CAC base',money0(p.cac))+L('÷ Cuentas por agencia',p.cuentasAg)+L('= CAC efectivo/cuenta',money0(pr.cacCuenta))+L('<b>Inversión del mes</b>','<b>'+money(r.cCAC)+'</b>')+N('El CAC se reparte entre las cuentas que trae cada agencia.')};
+   case 'cum6':return{t:'Utilidad acumulada 6 meses',h:F('Suma de la utilidad de cada mes')+rows.map(x=>L('Mes '+x.t,money(x.util))).join('')+L('<b>Acumulado</b>','<b>'+money(m.cum6)+'</b>')};
+   case 'util6':return{t:'Utilidad mes 6',h:F('Ingresos − Costos (mes 6)')+L('Ingresos',money(rows[5].ingresos))+L('− Costos',money(-rows[5].costos))+L('<b>Utilidad</b>','<b>'+money(rows[5].util)+'</b>')};
+   case 'ltv1':return{t:'LTV Tier 1 (con infra)',h:F('Margen mensual × meses de vida')+L('Tier 1 (prom c/desc)',money0(pr.tier1))+L('+ Fee infra',money0(p.feeInfra))+L(`− Operador/cliente (${money0(opMes)}÷${p.capT1})`,money(-opMes/p.capT1))+L('− Infra (VPS+API)',money(-(p.vps+p.api)))+L('= Margen/mes',money(margT1))+L('× Vida',p.vidaT1+' meses')+L('<b>LTV</b>','<b>'+money0(m.ltvT1)+'</b>')+N('El setup NO está acá: financia el CAC aparte.')};
+   case 'ltv2':return{t:'LTV Tier 2 (con infra)',h:F('Margen mensual × meses de vida')+L('Tier 2 (prom c/desc)',money0(pr.tier2))+L('+ Fee infra',money0(p.feeInfra))+L(`− Operador/cliente (${money0(opMes)}÷${p.capT2})`,money(-opMes/p.capT2))+L('− Infra (VPS+API)',money(-(p.vps+p.api)))+L('= Margen/mes',money(margT2))+L('× Vida',p.vidaT2+' meses')+L('<b>LTV</b>','<b>'+money0(m.ltvT2)+'</b>')};
+   case 'ratio1':return{t:'LTV : CAC — Tier 1',h:F('LTV ÷ CAC efectivo')+L('LTV Tier 1',money0(m.ltvT1))+L('CAC efectivo/cuenta',money0(pr.cacCuenta))+L('<b>Ratio</b>','<b>'+R(m.ratioT1)+'</b>')+N('Sano ≥ 3:1. Además el setup cubre el CAC por separado.')};
+   case 'ratio2':return{t:'LTV : CAC — Tier 2',h:F('LTV ÷ CAC efectivo')+L('LTV Tier 2',money0(m.ltvT2))+L('CAC efectivo/cuenta',money0(pr.cacCuenta))+L('<b>Ratio</b>','<b>'+R(m.ratioT2)+'</b>')};
+   case 'be':return{t:'Break-even (clientes)',h:F('Costos fijos ÷ margen de contribución/cliente')+L('Costos fijos'+(p.founderFree?' (1er op gratis)':''),money0((p.founderFree?0:opMes)+p.ghl+p.tools))+L('Margen contrib. promedio',money0(margBlend))+L('<b>Break-even</b>','<b>'+(m.beCli===Infinity?'—':m.beCli+' clientes')+'</b>')+N('Clientes para cubrir los costos fijos del mes.')};
+   case 'cacbe':return{t:'Setup cubre CAC hasta',h:F('Setup con infra − costo de montaje')+L('Setup con infra (prom)',money0(pr.setupCon))+L('− Montaje',money(-p.montaje))+L('<b>Margen del setup</b>','<b>'+money0(m.cacBE)+'</b>')+N('Si tu CAC ≤ este número, el cliente es rentable el día 1 solo con el setup.')};
+   case 'precioT1':return{t:'Precio promedio Tier 1 / cuenta',h:F('Promedio del Tier 1 con descuentos por volumen')+L('Tier 1 base',money0(p.tier1))+L('Cuentas por agencia',p.cuentasAg)+L('<b>Precio prom/cuenta</b>','<b>'+money0(pr.tier1)+'</b>')+N('Promedia el precio de las cuentas 1..N según los escalones de descuento.')};
+   case 'cacef':return{t:'CAC efectivo / cuenta',h:F('CAC ÷ cuentas por agencia')+L('CAC base',money0(p.cac))+L('Cuentas por agencia',p.cuentasAg)+L('<b>CAC efectivo</b>','<b>'+money0(pr.cacCuenta)+'</b>')+N('Al apilar cuentas, el costo de adquisición se diluye.')};
+  }
+  return null;
+}
+function openModal(key){const b=bd(key);if(!b)return;$('modalT').innerHTML=b.t;$('modalB').innerHTML=b.h;$('modalOv').style.display='flex';}
+function closeModal(){$('modalOv').style.display='none';}
+function buildMonthSel(){
+  const c=$('monthsel'); c.innerHTML='<span class="lbl">Ver mes:</span>';
+  for(let i=1;i<=6;i++){const b=document.createElement('button');b.className='mbtn'+(i===mesSel?' active':'');b.textContent='Mes '+i;b.onclick=()=>{mesSel=i;render();};c.appendChild(b);}
+}
+function renderHero(rows){
+  const r=rows[mesSel-1]; const cls=v=>v>=0?'pos':'neg';
+  $('hero').innerHTML=`
+    <div class="hc rev" data-key="revenue"><div class="k">💰 Revenue · Mes ${mesSel}</div><div class="v">${money(r.ingresos)}</div><div class="h">ingresos totales del mes · clic para el desglose</div></div>
+    <div class="hc profit" data-key="profit"><div class="k">📈 Profit neto · Mes ${mesSel}</div><div class="v ${cls(r.util)}">${money(r.util)}</div><div class="h">lo que te queda tras TODOS los costos · clic para ver</div></div>
+    <div class="hc ads" data-key="ads"><div class="k">📣 Inversión publicitaria · Mes ${mesSel}</div><div class="v">${money(r.cCAC)}</div><div class="h">${r1(r.nuevos)} cuentas nuevas × CAC · clic para ver</div></div>`;
+}
+function render(){
+  syncLabels();
+  const p=P(), rows=simulate(p), m=metrics(p,rows);
+  G={p,m,rows};
+  if(mesSel>p.meses)mesSel=p.meses;
+  buildMonthSel(); renderHero(rows);
+  renderCards(p,m,rows); renderChart(rows); renderTable(rows); renderFoot(p,m);
+}
+
+buildTemplates();
+injectTips();
+document.querySelectorAll('input').forEach(el=>el.addEventListener('input',render));
+document.addEventListener('click',e=>{const el=e.target.closest('.mc[data-key],.hc[data-key]');if(el)openModal(el.dataset.key);});
+$('modalX').onclick=closeModal;
+$('modalOv').onclick=e=>{if(e.target.id==='modalOv')closeModal();};
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
+document.querySelectorAll('#inputs .grp > h2').forEach(h=>h.addEventListener('click',()=>h.parentElement.classList.toggle('collapsed')));
+$('collapseAll').onclick=()=>document.querySelectorAll('#inputs .grp').forEach(g=>g.classList.add('collapsed'));
+$('expandAll').onclick=()=>document.querySelectorAll('#inputs .grp').forEach(g=>g.classList.remove('collapsed'));
+render();
+</script>
+</body>
+</html>
