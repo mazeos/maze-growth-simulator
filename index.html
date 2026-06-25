@@ -294,7 +294,17 @@ const PRESETS={
   'Solo Tier 2':{mixT1:0},
   'Todo con infra':{mixInfra:100},
   'Sin infra':{mixInfra:0},
-  'Combo agencia':{cuentasAg:8,mixInfra:90,nuevos:3}
+  'Combo agencia':{cuentasAg:8,mixInfra:90,nuevos:3},
+  'Margen alto':{setupSin:2200,setupCon:4500,tier1:850,tier2:1700,feeInfra:300},
+  'Margen bajo':{setupSin:1000,setupCon:2000,tier1:450,tier2:900,feeInfra:150},
+  'Setup premium':{setupSin:2500,setupCon:5000},
+  'Tiers premium':{tier1:900,tier2:1800},
+  'Fee infra premium':{feeInfra:350},
+  'Premium total':{setupSin:2500,setupCon:5000,tier1:900,tier2:1800,feeInfra:350,capT1:20,capT2:10},
+  'Costos altos (estrés)':{sueldo:2800,claude:250,api:130,vps:30,tools:200},
+  'API cara (picos)':{api:150},
+  'Ops eficiente':{capT1:25,capT2:12},
+  'Bajo costo ops':{sueldo:1500,tools:50}
 };
 
 function buildTemplates(){
