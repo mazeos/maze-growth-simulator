@@ -400,14 +400,19 @@ function renderCards(p,m,rows){
   const ratio=x=>x===Infinity?'∞':x.toFixed(1)+':1';
   const cls=v=>v>=0?'pos':'neg';
   const rm=rows[mesSel-1];
+  const ltvG=m.ltvT1*p.mixT1+m.ltvT2*(1-p.mixT1);
+  const ratioG=m.cacCuenta>0?ltvG/m.cacCuenta:Infinity;
+  const mrrNuevo=(rm.nuevos*p.mixT1)*m.pr.tier1+(rm.nuevos*(1-p.mixT1))*m.pr.tier2+(rm.nuevos*p.mixInfra)*p.feeInfra;
   const cards=[
     {key:'cum6',k:'Utilidad acum. 6m',v:money(m.cum6),c:cls(m.cum6),h:'lo que te queda en el bolsillo'},
     {key:'util6',k:'Utilidad mes 6',v:money(m.util6),c:cls(m.util6),h:'ritmo mensual al mes 6'},
     {key:'margen',k:'Margen s/ facturación',v:(rm.ingresos>0?(rm.util/rm.ingresos*100).toFixed(1)+'%':'—'),c:cls(rm.util),h:'utilidad ÷ ingresos · mes '+mesSel},
+    {key:'mrr',k:'MRR nuevo del mes',v:money0(mrrNuevo),c:'lima',h:'recurrente que suman los nuevos · mes '+mesSel},
     {key:'ltv1',k:'LTV Tier 1 (c/infra)',v:money0(m.ltvT1),c:'lima',h:p.vidaT1+' meses recurrentes'},
     {key:'ltv2',k:'LTV Tier 2 (c/infra)',v:money0(m.ltvT2),c:'lima',h:p.vidaT2+' meses recurrentes'},
     {key:'ratio1',k:'LTV:CAC Tier 1',v:ratio(m.ratioT1),c:m.ratioT1>=3?'pos':(m.ratioT1>=1?'gold':'neg'),h:'sano ≥ 3:1'},
     {key:'ratio2',k:'LTV:CAC Tier 2',v:ratio(m.ratioT2),c:m.ratioT2>=3?'pos':(m.ratioT2>=1?'gold':'neg'),h:'sano ≥ 3:1'},
+    {key:'ratioG',k:'LTV:CAC global',v:ratio(ratioG),c:ratioG>=3?'pos':(ratioG>=1?'gold':'neg'),h:'mezcla T1+T2 ponderada'},
     {key:'be',k:'Break-even',v:m.beCli===Infinity?'—':m.beCli+' clientes',c:'gold',h:'para cubrir costos fijos'},
     {key:'cacbe',k:'Setup cubre CAC hasta',v:money0(m.cacBE),c:'lima',h:'rentable día 1 si CAC ≤ esto'},
     {key:'precioT1',k:'Precio prom Tier 1/cuenta',v:money0(m.pr.tier1),c:'gold',h:'con descuento por volumen'},
@@ -537,6 +542,8 @@ function bd(key){
    case 'ltv2':return{t:'LTV Tier 2 (con infra)',h:F('Margen mensual × meses de vida')+L('Tier 2 (prom c/desc)',money0(pr.tier2))+L('+ Fee infra',money0(p.feeInfra))+L(`− Operador/cliente (${money0(opMes)}÷${p.capT2})`,money(-opMes/p.capT2))+L('− Infra (VPS+API)',money(-(p.vps+p.api)))+L('= Margen/mes',money(margT2))+L('× Vida',p.vidaT2+' meses')+L('<b>LTV</b>','<b>'+money0(m.ltvT2)+'</b>')};
    case 'ratio1':return{t:'LTV : CAC — Tier 1',h:F('LTV ÷ CAC efectivo')+L('LTV Tier 1',money0(m.ltvT1))+L('CAC efectivo/cuenta',money0(pr.cacCuenta))+L('<b>Ratio</b>','<b>'+R(m.ratioT1)+'</b>')+N('Sano ≥ 3:1. Además el setup cubre el CAC por separado.')};
    case 'ratio2':return{t:'LTV : CAC — Tier 2',h:F('LTV ÷ CAC efectivo')+L('LTV Tier 2',money0(m.ltvT2))+L('CAC efectivo/cuenta',money0(pr.cacCuenta))+L('<b>Ratio</b>','<b>'+R(m.ratioT2)+'</b>')};
+   case 'ratioG':{const lg=m.ltvT1*p.mixT1+m.ltvT2*(1-p.mixT1);return{t:'LTV : CAC — Global',h:F('LTV mezclado ÷ CAC efectivo')+L(`LTV T1 × ${Math.round(p.mixT1*100)}%`,money0(m.ltvT1*p.mixT1))+L(`LTV T2 × ${Math.round((1-p.mixT1)*100)}%`,money0(m.ltvT2*(1-p.mixT1)))+L('= LTV global',money0(lg))+L('CAC efectivo/cuenta',money0(pr.cacCuenta))+L('<b>Ratio global</b>','<b>'+R(pr.cacCuenta>0?lg/pr.cacCuenta:Infinity)+'</b>')+N('Promedio ponderado de T1 y T2 según tu mix. Sano ≥ 3:1.')};}
+   case 'mrr':{const nT1=r.nuevos*p.mixT1,nT2=r.nuevos*(1-p.mixT1),nInf=r.nuevos*p.mixInfra;return{t:`MRR nuevo · Mes ${mesSel}`,h:F('Recurrente que aportan los clientes NUEVOS del mes')+L(`• ${r1(nT1)} T1 nuevos × ${money0(pr.tier1)}`,money(nT1*pr.tier1))+L(`• ${r1(nT2)} T2 nuevos × ${money0(pr.tier2)}`,money(nT2*pr.tier2))+L(`• ${r1(nInf)} con infra × ${money0(p.feeInfra)} (fee)`,money(nInf*p.feeInfra))+L('<b>MRR nuevo del mes</b>','<b>'+money(nT1*pr.tier1+nT2*pr.tier2+nInf*p.feeInfra)+'</b>')+N('Facturación recurrente fresca que sumás este mes. No incluye el setup (pago único).')};}
    case 'be':return{t:'Break-even (clientes)',h:F('Costos fijos ÷ margen de contribución/cliente')+L('Costos fijos'+(p.founderFree?' (1er op gratis)':''),money0((p.founderFree?0:opMes)+p.ghl+p.tools))+L('Margen contrib. promedio',money0(margBlend))+L('<b>Break-even</b>','<b>'+(m.beCli===Infinity?'—':m.beCli+' clientes')+'</b>')+N('Clientes para cubrir los costos fijos del mes.')};
    case 'cacbe':return{t:'Setup cubre CAC hasta',h:F('Setup con infra − costo de montaje')+L('Setup con infra (prom)',money0(pr.setupCon))+L('− Montaje',money(-p.montaje))+L('<b>Margen del setup</b>','<b>'+money0(m.cacBE)+'</b>')+N('Si tu CAC ≤ este número, el cliente es rentable el día 1 solo con el setup.')};
    case 'precioT1':return{t:'Precio promedio Tier 1 / cuenta',h:F('Promedio del Tier 1 con descuentos por volumen')+L('Tier 1 base',money0(p.tier1))+L('Cuentas por agencia',p.cuentasAg)+L('<b>Precio prom/cuenta</b>','<b>'+money0(pr.tier1)+'</b>')+N('Promedia el precio de las cuentas 1..N según los escalones de descuento.')};
