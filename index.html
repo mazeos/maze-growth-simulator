@@ -116,7 +116,9 @@
   .sec-label{color:var(--mut);font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin:14px 0 4px;border-top:1px solid var(--line);padding-top:8px}
   .foot{color:#5f655a;font-size:11.5px;margin-top:14px;line-height:1.5}
   /* botón descargar PDF */
-  .topbar{display:flex;justify-content:flex-end;margin-bottom:10px}
+  .topbar{display:flex;justify-content:flex-end;gap:8px;margin-bottom:10px}
+  .resetbtn{background:var(--card2);border:1px solid var(--line);color:var(--mut);padding:8px 14px;border-radius:9px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600;transition:.12s}
+  .resetbtn:hover{border-color:var(--lima);color:var(--lima)}
   .pdfbtn{background:var(--lima);color:#0e0f0d;border:none;padding:8px 16px;border-radius:9px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;transition:.12s}
   .pdfbtn:hover{filter:brightness(1.08)}
   /* cómo se ve al exportar a PDF (impresión): reporte limpio en claro */
@@ -254,7 +256,7 @@
 
   <!-- ============ RESULTS ============ -->
   <div class="results">
-    <div class="topbar"><button id="btnPdf" class="pdfbtn">⬇ Descargar reporte PDF</button></div>
+    <div class="topbar"><button id="btnReset" class="resetbtn">↺ Restablecer</button><button id="btnPdf" class="pdfbtn">⬇ Descargar reporte PDF</button></div>
     <div class="monthsel" id="monthsel"></div>
     <div class="hero" id="hero"></div>
     <div class="cards" id="cards"></div>
@@ -563,6 +565,15 @@ function render(){
   if(mesSel>p.meses)mesSel=p.meses;
   buildMonthSel(); renderHero(rows);
   renderCards(p,m,rows); renderChart(rows); renderTable(rows); renderFoot(p,m);
+  saveState();
+}
+
+const STORAGE_KEY='maze-sim-state-v1';
+function saveState(){
+  try{const d={};document.querySelectorAll('#inputs input').forEach(el=>{if(!el.id)return;d[el.id]=el.type==='checkbox'?el.checked:el.value;});localStorage.setItem(STORAGE_KEY,JSON.stringify(d));}catch(e){}
+}
+function loadState(){
+  try{const raw=localStorage.getItem(STORAGE_KEY);if(!raw)return;const d=JSON.parse(raw);for(const id in d){const el=$(id);if(!el)continue;if(el.type==='checkbox')el.checked=d[id];else el.value=d[id];}}catch(e){}
 }
 
 buildTemplates();
@@ -576,6 +587,8 @@ document.querySelectorAll('#inputs .grp > h2').forEach(h=>h.addEventListener('cl
 $('collapseAll').onclick=()=>document.querySelectorAll('#inputs .grp').forEach(g=>g.classList.add('collapsed'));
 $('expandAll').onclick=()=>document.querySelectorAll('#inputs .grp').forEach(g=>g.classList.remove('collapsed'));
 $('btnPdf').onclick=()=>window.print();
+$('btnReset').onclick=()=>{if(confirm('¿Restablecer todos los valores a los de fábrica? Se perderá la simulación guardada.')){try{localStorage.removeItem(STORAGE_KEY);}catch(e){}location.reload();}};
+loadState();
 render();
 </script>
 </body>
