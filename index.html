@@ -396,9 +396,11 @@ function metrics(p,rows){
 function renderCards(p,m,rows){
   const ratio=x=>x===Infinity?'∞':x.toFixed(1)+':1';
   const cls=v=>v>=0?'pos':'neg';
+  const rm=rows[mesSel-1];
   const cards=[
     {key:'cum6',k:'Utilidad acum. 6m',v:money(m.cum6),c:cls(m.cum6),h:'lo que te queda en el bolsillo'},
     {key:'util6',k:'Utilidad mes 6',v:money(m.util6),c:cls(m.util6),h:'ritmo mensual al mes 6'},
+    {key:'margen',k:'Margen s/ facturación',v:(rm.ingresos>0?(rm.util/rm.ingresos*100).toFixed(1)+'%':'—'),c:cls(rm.util),h:'utilidad ÷ ingresos · mes '+mesSel},
     {key:'ltv1',k:'LTV Tier 1 (c/infra)',v:money0(m.ltvT1),c:'lima',h:p.vidaT1+' meses recurrentes'},
     {key:'ltv2',k:'LTV Tier 2 (c/infra)',v:money0(m.ltvT2),c:'lima',h:p.vidaT2+' meses recurrentes'},
     {key:'ratio1',k:'LTV:CAC Tier 1',v:ratio(m.ratioT1),c:m.ratioT1>=3?'pos':(m.ratioT1>=1?'gold':'neg'),h:'sano ≥ 3:1'},
@@ -534,6 +536,7 @@ function bd(key){
    case 'be':return{t:'Break-even (clientes)',h:F('Costos fijos ÷ margen de contribución/cliente')+L('Costos fijos'+(p.founderFree?' (1er op gratis)':''),money0((p.founderFree?0:opMes)+p.ghl+p.tools))+L('Margen contrib. promedio',money0(margBlend))+L('<b>Break-even</b>','<b>'+(m.beCli===Infinity?'—':m.beCli+' clientes')+'</b>')+N('Clientes para cubrir los costos fijos del mes.')};
    case 'cacbe':return{t:'Setup cubre CAC hasta',h:F('Setup con infra − costo de montaje')+L('Setup con infra (prom)',money0(pr.setupCon))+L('− Montaje',money(-p.montaje))+L('<b>Margen del setup</b>','<b>'+money0(m.cacBE)+'</b>')+N('Si tu CAC ≤ este número, el cliente es rentable el día 1 solo con el setup.')};
    case 'precioT1':return{t:'Precio promedio Tier 1 / cuenta',h:F('Promedio del Tier 1 con descuentos por volumen')+L('Tier 1 base',money0(p.tier1))+L('Cuentas por agencia',p.cuentasAg)+L('<b>Precio prom/cuenta</b>','<b>'+money0(pr.tier1)+'</b>')+N('Promedia el precio de las cuentas 1..N según los escalones de descuento.')};
+   case 'margen':return{t:`Margen sobre facturación · Mes ${mesSel}`,h:F('Utilidad ÷ Ingresos del mes')+L('Ingresos del mes',money(r.ingresos))+L('Utilidad neta del mes',money(r.util))+L('<b>Margen</b>','<b>'+(r.ingresos>0?(r.util/r.ingresos*100).toFixed(1)+'%':'—')+'</b>')+N('De cada $100 que facturás este mes, esto te queda de ganancia tras TODOS los costos. Varía mes a mes (los primeros meses pesan el setup y el CAC).')};
    case 'cacef':return{t:'CAC efectivo / cuenta',h:F('CAC ÷ cuentas por agencia')+L('CAC base',money0(p.cac))+L('Cuentas por agencia',p.cuentasAg)+L('<b>CAC efectivo</b>','<b>'+money0(pr.cacCuenta)+'</b>')+N('Al apilar cuentas, el costo de adquisición se diluye.')};
   }
   return null;
