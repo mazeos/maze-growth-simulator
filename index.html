@@ -80,7 +80,7 @@
   /* tooltip */
   .tip{display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:50%;border:1px solid var(--line);color:var(--mut);font-size:9px;font-style:italic;cursor:help;margin-left:6px;position:relative;flex:none;font-weight:700}
   .tip:hover{border-color:var(--lima);color:var(--lima)}
-  .tip:hover::after{content:attr(data-tip);position:absolute;left:145%;top:50%;transform:translateY(-50%);background:#0a0b09;border:1px solid var(--lima);color:var(--txt);padding:8px 11px;border-radius:8px;width:210px;font-size:11.5px;line-height:1.45;font-weight:400;font-style:normal;text-transform:none;letter-spacing:0;z-index:80;box-shadow:0 8px 24px rgba(0,0,0,.55)}
+  #tipbox{display:none;position:fixed;background:#0a0b09;border:1px solid var(--lima);color:var(--txt);padding:8px 11px;border-radius:8px;width:210px;max-width:62vw;font-size:11.5px;line-height:1.45;font-weight:400;font-style:normal;text-transform:none;letter-spacing:0;z-index:200;box-shadow:0 8px 24px rgba(0,0,0,.55);pointer-events:none}
   /* modal */
   .modal-ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.62);z-index:100;align-items:center;justify-content:center;padding:20px}
   .modal{background:var(--card);border:1px solid var(--lima);border-radius:16px;padding:22px;max-width:470px;width:100%;position:relative;box-shadow:0 24px 70px rgba(0,0,0,.6)}
@@ -529,8 +529,22 @@ const TIPS={
   cuentasAg:'Cuántas cuentas trae en promedio una misma agencia (apila). Más cuentas = más descuento por volumen y CAC más diluido.'
 };
 function injectTips(){
-  for(const id in TIPS){const el=$(id);if(!el)continue;const cont=el.closest('.field,.slider-field,.chk');if(!cont)continue;const lab=cont.querySelector('label')||cont;const s=document.createElement('span');s.className='tip';s.dataset.tip=TIPS[id];s.textContent='i';lab.appendChild(s);}
+  for(const id in TIPS){const el=$(id);if(!el)continue;const cont=el.closest('.field,.slider-field,.chk');if(!cont)continue;const lab=cont.querySelector('label')||cont;const s=document.createElement('span');s.className='tip';s.dataset.tip=TIPS[id];s.textContent='i';s.addEventListener('mouseenter',showTip);s.addEventListener('mouseleave',hideTip);lab.appendChild(s);}
 }
+let tipbox=null;
+function showTip(e){
+  const el=e.currentTarget,txt=el.dataset.tip;if(!txt)return;
+  if(!tipbox){tipbox=document.createElement('div');tipbox.id='tipbox';document.body.appendChild(tipbox);}
+  tipbox.textContent=txt;tipbox.style.display='block';
+  const r=el.getBoundingClientRect(),tw=tipbox.offsetWidth,th=tipbox.offsetHeight;
+  let left=r.right+10;
+  if(left+tw>window.innerWidth-8)left=r.left-10-tw;
+  if(left<8)left=8;
+  let top=r.top+r.height/2-th/2;
+  top=Math.max(8,Math.min(top,window.innerHeight-th-8));
+  tipbox.style.left=left+'px';tipbox.style.top=top+'px';
+}
+function hideTip(){if(tipbox)tipbox.style.display='none';}
 function bd(key){
   const {p,m,rows}=G; if(!rows)return null; const r=rows[mesSel-1]; const pr=m.pr; const opMes=p.sueldo+p.claude;
   const margT1=pr.tier1+p.feeInfra-opMes/p.capT1-(p.vps+p.api);
@@ -609,3 +623,5 @@ render();
 </script>
 </body>
 </html>
+
+<!-- deploy test camino B: 7f58859 -->
