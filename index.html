@@ -114,6 +114,36 @@
   .pos{color:var(--pos)} .neg{color:var(--neg)} .dim{color:#6b7163}
   .sec-label{color:var(--mut);font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin:14px 0 4px;border-top:1px solid var(--line);padding-top:8px}
   .foot{color:#5f655a;font-size:11.5px;margin-top:14px;line-height:1.5}
+  /* botón descargar PDF */
+  .topbar{display:flex;justify-content:flex-end;margin-bottom:10px}
+  .pdfbtn{background:var(--lima);color:#0e0f0d;border:none;padding:8px 16px;border-radius:9px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;transition:.12s}
+  .pdfbtn:hover{filter:brightness(1.08)}
+  /* cómo se ve al exportar a PDF (impresión): reporte limpio en claro */
+  @media print{
+    @page{margin:14mm}
+    body{height:auto;overflow:visible;display:block;background:#fff;color:#111;padding:0;max-width:none}
+    header{margin-bottom:14px}
+    h1,h1 .ge{color:#111;-webkit-text-fill-color:#111}
+    .sub{color:#555}
+    .templates,.acc-bar,.panel,#monthsel,.topbar,.tip,.legend{display:none!important}
+    .layout{display:block}
+    .results{overflow:visible}
+    h2{color:#3f6a00}
+    .hero,.cards{break-inside:avoid}
+    .hc,.mc{background:#fff!important;border:1px solid #ccc!important;color:#111!important}
+    .hc .k,.mc .k,.hc .h,.mc .h{color:#555!important}
+    .hc .v,.mc .v{color:#111!important}
+    .hc .v.pos,.mc .v.pos{color:#2e7d32!important}
+    .hc .v.neg,.mc .v.neg{color:#c62828!important}
+    .hc.rev .v,.mc .v.lima{color:#3f6a00!important}
+    .hc.ads .v,.mc .v.gold{color:#9a7b1f!important}
+    .chartwrap,.tablewrap{background:#fff!important;border:1px solid #ccc!important;break-inside:avoid}
+    table,th,td{color:#111!important;border-color:#ccc!important}
+    thead th{color:#3f6a00!important;background:#fff!important}
+    .pos{color:#2e7d32!important}.neg{color:#c62828!important}.dim{color:#555!important}
+    .sec-label{color:#555!important}
+    .foot{color:#555!important}
+  }
 </style>
 </head>
 <body>
@@ -223,6 +253,7 @@
 
   <!-- ============ RESULTS ============ -->
   <div class="results">
+    <div class="topbar"><button id="btnPdf" class="pdfbtn">⬇ Descargar reporte PDF</button></div>
     <div class="monthsel" id="monthsel"></div>
     <div class="hero" id="hero"></div>
     <div class="cards" id="cards"></div>
@@ -529,6 +560,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
 document.querySelectorAll('#inputs .grp > h2').forEach(h=>h.addEventListener('click',()=>h.parentElement.classList.toggle('collapsed')));
 $('collapseAll').onclick=()=>document.querySelectorAll('#inputs .grp').forEach(g=>g.classList.add('collapsed'));
 $('expandAll').onclick=()=>document.querySelectorAll('#inputs .grp').forEach(g=>g.classList.remove('collapsed'));
+$('btnPdf').onclick=()=>window.print();
 render();
 </script>
 </body>
